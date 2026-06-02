@@ -1,0 +1,99 @@
+{
+  "name": "Strava + Telegram + Obsidian Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": [
+          {
+            "hour": 21,
+            "minute": 0
+          }
+        ],
+        "mode": "everyDay"
+      },
+      "name": "Daily Sync Trigger",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "command": "python",
+        "arguments": [
+          "src/strava_sync.py"
+        ],
+        "options": {
+          "workingDirectory": "={{$workflow.folderPath || '/data'}}"
+        }
+      },
+      "name": "Run Strava Sync",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [550, 200]
+    },
+    {
+      "parameters": {
+        "command": "python",
+        "arguments": [
+          "src/obsidian_writer.py"
+        ],
+        "options": {
+          "workingDirectory": "={{$workflow.folderPath || '/data'}}"
+        }
+      },
+      "name": "Write Obsidian Notes",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_ADMIN_ID}}",
+        "text": "✅ Daily sync completed successfully. Revisa el vault de Obsidian y MongoDB para validar datos.",
+        "parseMode": "Markdown"
+      },
+      "name": "Notify Telegram Admin",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1150, 200]
+    }
+  ],
+  "connections": {
+    "Daily Sync Trigger": {
+      "main": [
+        [
+          {
+            "node": "Run Strava Sync",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Strava Sync": {
+      "main": [
+        [
+          {
+            "node": "Write Obsidian Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Obsidian Notes": {
+      "main": [
+        [
+          {
+            "node": "Notify Telegram Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "connectionsLayout": "horizontal"
+}
