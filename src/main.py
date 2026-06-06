@@ -1,5 +1,7 @@
 import asyncio
 import logging
+from threading import Thread
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from telegram.ext import Application
@@ -10,6 +12,25 @@ from .obsidian_writer import update_obsidian_vault
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    """Handler para health checks de Render"""
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"OK")
+
+    def log_message(self, format, *args):
+        """Suprimir logs de health check"""
+        pass
+
+
+def run_health_server(port=10000):
+    """Servidor HTTP mínimo para health checks de Render"""
+    server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
+    logger.info(f"[HEALTH] Servidor health check escuchando en puerto {port}")
+    server.serve_forever()
 
 class CoachingSystem:
     def __init__(self):
@@ -45,6 +66,10 @@ class CoachingSystem:
     def start(self):
         """Iniciar el sistema"""
         logger.info("[START] Iniciando Sistema de Coaching...")
+
+        # Iniciar servidor de health check para Render (en thread daemon)
+        health_thread = Thread(target=run_health_server, daemon=True)
+        health_thread.start()
 
         # Crear scheduler (BackgroundScheduler corre en thread separado)
         self.scheduler = BackgroundScheduler(timezone=TIMEZONE)
